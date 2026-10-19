@@ -1,0 +1,17 @@
+{
+  "name": "radio-togotane",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Radio Togotane FM 88.3 - Full-Stack Radio Management Platform",
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "seed": "cd backend && npm run seed",
+    "prisma:push": "cd backend && npx prisma db push",
+    "prisma:studio": "cd backend && npx prisma studio"
+  },
+  "workspaces": ["frontend", "backend"]
+}

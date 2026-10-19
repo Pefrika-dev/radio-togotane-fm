@@ -1,0 +1,328 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================
+// Enums
+// =====================
+enum Role {
+  SUPER_ADMIN
+  EDITOR
+  CONTRIBUTOR
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContactStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  IN_PROGRESS
+  CLOSED
+  LOST
+}
+
+enum ProgramStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// =====================
+// Admin Users
+// =====================
+model AdminUser {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          Role     @default(EDITOR)
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// =====================
+// Station Settings (singleton)
+// =====================
+model StationSettings {
+  id                String   @id @default(cuid())
+  stationName       String   @default("Radio Togotane FM")
+  frequency         String   @default("88.3 FM")
+  tagline           String?
+  description       String?
+  logoUrl           String?
+  faviconUrl        String?
+  address           String?
+  phone             String?
+  email             String?
+  whatsappNumber    String?
+  timezone          String   @default("Africa/Nairobi")
+  streamUrl         String?
+  streamType        String   @default("direct") // direct | zeno_embed | external
+  seoTitle          String?
+  seoDescription    String?
+  footerText        String?
+  socialFacebook    String?
+  socialTwitter     String?
+  socialInstagram   String?
+  socialYoutube     String?
+  socialTiktok      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// =====================
+// Presenters
+// =====================
+model Presenter {
+  id          String   @id @default(cuid())
+  fullName    String
+  slug        String   @unique
+  photoUrl    String?
+  bio         String?
+  isActive    Boolean  @default(true)
+  socialFacebook  String?
+  socialTwitter   String?
+  socialInstagram String?
+  socialTiktok    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  programs    Program[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// =====================
+// Programs
+// =====================
+model Program {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  description String?
+  category    String?
+  imageUrl    String?
+  status      ProgramStatus @default(ACTIVE)
+  isRecurring Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  presenterId String?
+  presenter   Presenter?    @relation(fields: [presenterId], references: [id], onDelete: SetNull)
+
+  schedules   ProgramSchedule[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([presenterId])
+}
+
+// =====================
+// Program Schedules
+// =====================
+model ProgramSchedule {
+  id          String   @id @default(cuid())
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int      // 0=Sunday ... 6=Saturday
+  startTime   String   // "HH:MM" in station timezone
+  endTime     String   // "HH:MM"
+  isSpecial   Boolean  @default(false)
+  specialDate DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([programId])
+  @@index([dayOfWeek])
+}
+
+// =====================
+// News Categories
+// =====================
+model NewsCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  articles    NewsArticle[]
+
+  @@index([slug])
+}
+
+// =====================
+// News Articles
+// =====================
+model NewsArticle {
+  id            String             @id @default(cuid())
+  title         String
+  slug          String             @unique
+  excerpt       String?
+  content       String
+  featuredImageUrl String?
+  status        PublicationStatus  @default(DRAFT)
+  publishedAt   DateTime?
+  authorName    String?
+  seoTitle      String?
+  seoDescription String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  categoryId    String?
+  category      NewsCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([slug])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([categoryId])
+}
+
+// =====================
+// Podcast Categories
+// =====================
+model PodcastCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  episodes    PodcastEpisode[]
+
+  @@index([slug])
+}
+
+// =====================
+// Podcast Episodes
+// =====================
+model PodcastEpisode {
+  id            String             @id @default(cuid())
+  title         String
+  slug          String             @unique
+  description   String?
+  audioUrl      String
+  artworkUrl    String?
+  duration      Int?               // seconds
+  status        PublicationStatus  @default(DRAFT)
+  publishedAt   DateTime?
+  presenterName String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  categoryId    String?
+  category      PodcastCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([slug])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([categoryId])
+}
+
+// =====================
+// Contact Messages
+// =====================
+model ContactMessage {
+  id        String        @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  subject   String
+  message   String
+  status    ContactStatus @default(UNREAD)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// =====================
+// Advertising Packages
+// =====================
+model AdvertisingPackage {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  price       String?  // stored as text to allow "Contact for pricing"
+  features    String?  // JSON array as text
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inquiries   AdvertisingInquiry[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// =====================
+// Advertising Inquiries
+// =====================
+model AdvertisingInquiry {
+  id            String        @id @default(cuid())
+  businessName  String
+  contactPerson String
+  phone         String
+  email         String?
+  packageId     String?
+  package       AdvertisingPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  objectives    String?
+  budgetRange   String?
+  startDate     DateTime?
+  endDate       DateTime?
+  notes         String?       // admin notes
+  status        InquiryStatus @default(NEW)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// =====================
+// Audit Logs
+// =====================
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        AdminUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String
+  entityType  String?
+  entityId    String?
+  details     String?  // JSON
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
